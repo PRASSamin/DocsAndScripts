@@ -94,8 +94,8 @@ Categories=Utility;
 Actions=Uninstall;" > "$DESKTOP_FILE"
 else
     echo -e "${GREEN}Desktop entry already exists, updating...${NC}"
-    sed -i '/Exec=/c\Exec=$INSTALL_DIR/cursor.AppImage --no-sandbox %U' "$DESKTOP_FILE"
-    sed -i '/Icon=/c\Icon=$INSTALL_DIR/cursor.png' "$DESKTOP_FILE"
+    sed -i "/Exec=/c\Exec=$INSTALL_DIR/cursor.AppImage --no-sandbox %U" "$DESKTOP_FILE"
+    sed -i "/Icon=/c\Icon=$INSTALL_DIR/cursor.png" "$DESKTOP_FILE"
 fi
 
 # Add uninstall action to desktop entry
