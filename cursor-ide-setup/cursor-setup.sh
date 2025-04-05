@@ -14,9 +14,8 @@ RED="\e[31m"
 NC="\e[0m"
 
 # Define variables
+CURSOR_VERSION_HISTORY_JSON_URL="https://raw.githubusercontent.com/oslook/cursor-ai-downloads/refs/heads/main/version-history.json"
 CURSOR_APPIMAGE_URL="https://downloader.cursor.sh/linux/appImage/x64"
-APPIMAGE_TOOL_URL="https://github.com/AppImage/AppImageKit/releases/latest/download/appimagetool-x86_64.AppImage"
-APPIMAGE_LAUNCHER_URL="https://github.com/TheAssassin/AppImageLauncher/releases/download/v2.2.0/appimagelauncher-2.2.0-travis995.0f91801.x86_64.rpm"
 INSTALL_DIR="$HOME/Applications/cursor"
 DESKTOP_FILE="$HOME/.local/share/applications/cursor.desktop"
 BASHRC_FILE="$HOME/.bashrc"
@@ -27,10 +26,32 @@ command_exists() {
     command -v "$1" &>/dev/null
 }
 
-# Download Cursor AppImage
+# Fetch Version History
+if [ ! -f "version-history.json" ]; then
+    echo -e "${YELLOW}Fetching version history...${NC}"
+    wget "$CURSOR_VERSION_HISTORY_JSON_URL" -O version-history.json
+else
+    echo -e "${GREEN}Version history already exists, skipping fetch.${NC}"
+fi
+
+# Extract latest version from JSON
+LATEST_VERSION=$(jq -r '.versions[0].version' version-history.json)
+
+# Detect system architecture
+ARCH=$(uname -m)
+if [[ "$ARCH" == "x86_64" ]]; then
+    DOWNLOAD_URL=$(jq -r ".versions[] | select(.version == \"$LATEST_VERSION\") | .platforms[\"linux-x64\"]" version-history.json)
+elif [[ "$ARCH" == "aarch64" ]]; then
+    DOWNLOAD_URL=$(jq -r ".versions[] | select(.version == \"$LATEST_VERSION\") | .platforms[\"linux-arm64\"]" version-history.json)
+else
+    echo -e "${RED}Unsupported architecture: $ARCH. Only x64 and arm64 are supported.${NC}"
+    exit 1
+fi
+
+# Download the appropriate AppImage based on the architecture
 if [ ! -f "cursor.AppImage" ]; then
-    echo -e "${YELLOW}Downloading Cursor AppImage...${NC}"
-    wget "$CURSOR_APPIMAGE_URL" -O cursor.AppImage
+    echo -e "${YELLOW}Downloading Cursor ${LATEST_VERSION} AppImage...${NC}"
+    wget "$DOWNLOAD_URL" -O cursor.AppImage
     chmod +x cursor.AppImage
 else
     echo -e "${GREEN}Cursor AppImage already exists, skipping download.${NC}"
@@ -38,7 +59,7 @@ fi
 
 # Extract AppImage
 if [ ! -d "squashfs-root" ]; then
-    echo -e "${YELLOW}Extracting Cursor AppImage...${NC}"
+    echo -e "${YELLOW}Extracting Cursor ${LATEST_VERSION} AppImage...${NC}"
     ./cursor.AppImage --appimage-extract
     rm cursor.AppImage
 else
@@ -68,7 +89,7 @@ else
 fi
 
 # Build new AppImage
-echo -e "${YELLOW}Building new Cursor AppImage...${NC}"
+echo -e "${YELLOW}Building new Cursor ${LATEST_VERSION} AppImage...${NC}"
 ARCH=$(uname -m) appimagetool squashfs-root cursor.AppImage
 chmod +x cursor.AppImage
 echo -e "${GREEN}Build complete!${NC}"
@@ -141,6 +162,6 @@ else
 fi
 
 # Clean up
-rm -rf squashfs-root
+rm -rf squashfs-root version-history.json
 
-echo -e "${GREEN}Cursor IDE installation completed! You can run it using 'cursor' command or from the application menu.${NC}"
+echo -e "${GREEN}Cursor IDE ${LATEST_VERSION} installation completed! You can run it using 'cursor' command or from the application menu.${NC}"
