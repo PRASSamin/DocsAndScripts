@@ -1,25 +1,28 @@
 # Proper Installation of Cursor AppImage on Linux (Fedora)
 
-This guide covers downloading, modifying, and permanently installing Cursor as an AppImage on Fedora, including resolving issues like double title bars and adding terminal launch support.
+This guide covers downloading, modifying, and permanently installing **Cursor** as an AppImage on Fedora, including resolving issues like double title bars and adding terminal launch support.
 
 ---
 
 ## 1. Download Cursor AppImage
 
-You can download the Cursor AppImage using `wget` or from the official website:
+You can download the Cursor AppImage either via the command line or from the official website:
+
+### **Using the Terminal:**
 
 ```sh
-wget https://downloader.cursor.sh/linux/appImage/x64 -O ./cursor.AppImage
+CURSOR_DOWNLOAD_URL=$(wget -qO- https://raw.githubusercontent.com/oslook/cursor-ai-downloads/refs/heads/main/version-history.json | jq -r --arg arch "$(uname -m)" '.versions[0].platforms[if $arch == "x86_64" then "linux-x64" elif $arch == "aarch64" then "linux-arm64" else error("Unsupported architecture: \($arch)") end]')
+wget "$CURSOR_DOWNLOAD_URL" -O ./cursor.AppImage
 chmod +x ./cursor.AppImage
 ```
 
-Or visit: [https://www.cursor.com/](https://www.cursor.com/)
+Alternatively, you can download the AppImage from [Cursor’s official website](https://www.cursor.com/).
 
 ---
 
 ## 2. Extract the AppImage
 
-Extract the AppImage to access its source files:
+To extract the AppImage and access its source files, run:
 
 ```sh
 ./cursor.AppImage --appimage-extract
@@ -30,7 +33,7 @@ rm ./cursor.AppImage  # Remove the original AppImage file
 
 ## 3. Modify Cursor to Fix Double Title Bar Issue
 
-Find and replace the window configuration settings:
+Locate and modify the window configuration to remove the double title bar. This involves finding the necessary files and making changes:
 
 ```sh
 find squashfs-root/ -type f -name '*.js' \
@@ -38,19 +41,19 @@ find squashfs-root/ -type f -name '*.js' \
   -exec sed -i 's/,minHeight/,frame:false,minHeight/g' {} \;
 ```
 
-**`Alternatively`**, manually edit the main file:
+**Alternatively**, you can manually edit the main file:
 
 ```sh
 nano squashfs-root/resource/app/out/main.js
 ```
 
-**`or`**
+or
 
 ```sh
 nano squashfs-root/resource/app/out/vs/code/electron-main/main.js
 ```
 
-Replace occurrences of:
+Look for and replace:
 
 ```js
 ,minHeight
@@ -64,107 +67,68 @@ with:
 
 ---
 
-## 4. Store the Icon File
+## 4. Prepare Cursor Icon
 
-Save the Cursor icon for later use:
+To ensure the icon is correctly included, copy the Cursor icon:
 
 ```sh
-cp squashfs-root/cursor.png /path/to/cursor.png  # Change path as needed
+cp $(find "$INSTALL_DIR" -type f -name "cursor.png" | head -n 1) squashfs-root/usr/cursor.png
 ```
 
 ---
 
-## 5. Download AppImage Tool
+## 5. Prepare Installation Directory
 
-Download and make the AppImage tool executable:
-
-```sh
-wget https://github.com/AppImage/AppImageKit/releases/latest/download/appimagetool-x86_64.AppImage
-chmod +x ./appimagetool-x86_64.AppImage
-```
-
-Move it to `/usr/local/bin` for global use:
+Create a permanent installation directory where the app will reside:
 
 ```sh
-sudo mv appimagetool-x86_64.AppImage /usr/local/bin/appimagetool
+mkdir ~/cursor
 ```
 
 ---
 
-## 6. Rebuild Cursor AppImage
+## 6. Move Files to Permanent Installation Directory
 
-Run:
-
-```sh
-ARCH=$(uname -m) appimagetool squashfs-root cursor.AppImage
-```
-
-Make the new AppImage executable:
+Copy the extracted files to the permanent directory:
 
 ```sh
-chmod +x cursor.AppImage
+cp -r squashfs-root/usr/* ~/cursor
 ```
 
 ---
 
-## 7. Install AppImage Launcher (Optional, for Auto Installation)
+## 7. Create Desktop Entry
 
-Download AppImage Launcher:
-
-```sh
-wget https://github.com/TheAssassin/AppImageLauncher/releases/download/v2.2.0/appimagelauncher-2.2.0-travis995.0f91801.x86_64.rpm
-```
-
-Or get the latest version from: [https://github.com/TheAssassin/AppImageLauncher](https://github.com/TheAssassin/AppImageLauncher)
-
-Install it using `dnf`:
-
-```sh
-sudo dnf install ./appimagelauncher*.rpm -y
-```
-
-Run the `cursor.AppImage` file after installation. This will automatically install the AppImage.
-
----
-
-## 8. Manually Install Cursor AppImage
-
-Create a permanent installation directory:
-
-```sh
-mkdir -p ~/Applications/cursor
-cd ~/Applications/cursor
-```
-
-Copy the modified Cursor AppImage and icon:
-
-```sh
-cp /path/to/cursor.AppImage ./cursor.AppImage
-cp /path/to/cursor.png ./cursor.png  # Change path as needed
-```
-
-Create a desktop entry:
+For easy access, create a desktop entry:
 
 ```sh
 sudo nano ~/.local/share/applications/cursor.desktop
 ```
 
-Paste the following:
+Paste the following content:
 
 ```ini
 [Desktop Entry]
 Name=Cursor
-Exec=/home/username/Applications/cursor/cursor.AppImage --no-sandbox %U
-Terminal=false
+Comment=The AI Code Editor.
+GenericName=Text Editor
+Exec=~/cursor/bin/cursor
+Icon=~/cursor/cursor.png
 Type=Application
-Icon=cursor
+StartupNotify=false
 StartupWMClass=Cursor
-Comment=Cursor is an AI-first coding environment.
-MimeType=x-scheme-handler/cursor;
-Categories=Utility;
+Categories=TextEditor;Development;IDE;
+MimeType=application/x-cursor-workspace;
+Actions=new-empty-window;
+Keywords=cursor;
+
+[Desktop Action new-empty-window]
+Name=New Empty Window
+Exec=$INSTALL_DIR/bin/cursor --new-window
+Icon=$INSTALL_DIR/cursor.png
 ```
 
-Save and close the file, then update the desktop database:
+Save and close the file. Then update the desktop database:
 
 ```sh
 update-desktop-database ~/.local/share/applications/
@@ -174,27 +138,25 @@ update-desktop-database ~/.local/share/applications/
 
 ## 9. Enable Terminal Shortcut to Launch Cursor
 
-To open Cursor from the terminal using `cursor .` or `cursor [path]`, add the following function to your `.bashrc` file:
+To launch Cursor from the terminal using `cursor .` or `cursor [path]`, add the following function to your `.bashrc` file:
 
 ```sh
 sudo nano ~/.bashrc
 ```
 
-Append this at the bottom:
+Append this line at the bottom:
 
 ```sh
-cursor() {
-    setsid /home/username/Applications/cursor.AppImage "$@" >/dev/null 2>&1
-}
+export PATH="$HOME/cursor/bin:$PATH"
 ```
 
-Save and refresh the terminal:
+Save the file and refresh your terminal:
 
 ```sh
 source ~/.bashrc
 ```
 
-Now you can run Cursor from the terminal with:
+You can now run Cursor directly from the terminal with:
 
 ```sh
 cursor .
@@ -210,4 +172,12 @@ cursor [specific path]
 
 ## Conclusion
 
-Following these steps, you have successfully installed, modified, and set up Cursor as a permanent AppImage on Fedora with a fixed UI issue and a terminal shortcut for easy access.
+Following these steps, you've successfully:
+
+* Downloaded and installed Cursor AppImage on Fedora
+* Fixed the double title bar issue
+* Set up a terminal shortcut for quick access
+
+You now have a fully functional Cursor editor, installed permanently on your system. Enjoy coding with Cursor! 😄
+
+---
