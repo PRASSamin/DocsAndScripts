@@ -77,8 +77,9 @@ cd "$TMP_DIR"
 ./cursor.AppImage --appimage-extract > /dev/null
 
 # ─── Modify Frame Style ─────────────────────────────────────────
-find squashfs-root/ -type f -name '*.js' \
-  -exec sed -i 's/,minHeight/,frame:false,minHeight/g' {} \;
+# The double title bar issue was fixed starting from Cursor v0.48, so frame modification is no longer needed
+# find squashfs-root/ -type f -name '*.js' \
+#   -exec sed -i 's/,minHeight/,frame:false,minHeight/g' {} \;
 
 # ─── Install ─────────────────────────────────────────────────────
 echo -e "${YELLOW}Installing to $INSTALL_DIR...${NC}"
